@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LuckyDice Control</title>
+<style>
+  :root {
+    --bg: #f4f5f7; --card: #ffffff; --ink: #1d2330; --mute: #6b7385; --line: #dde1e8;
+    --accent: #2f5fd0; --ok: #1f9d55; --warn: #c98a00; --bad: #d23b3b; --lampoff: #c9ced8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #14171d; --card: #1d222b; --ink: #e8ebf1; --mute: #9aa3b5; --line: #2d3440;
+            --accent: #6d93ff; --ok: #3cc47a; --warn: #e8b23a; --bad: #ff6464; --lampoff: #3a414e; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 "Segoe UI", Tahoma, sans-serif; }
+  header { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 14px 16px;
+           background: var(--card); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 5; }
+  header h1 { font-size: 18px; margin: 0 12px 0 0; }
+  .conn { font-size: 13px; color: var(--mute); }
+  .conn b { color: var(--bad); } .conn.on b { color: var(--ok); }
+  .spacer { flex: 1; }
+  main { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; padding: 16px; max-width: 1280px; margin: 0 auto; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+  .card h2 { font-size: 15px; margin: 0 0 10px; display: flex; justify-content: space-between; align-items: center; }
+  .card h2 small { font-weight: normal; color: var(--mute); font-size: 12px; }
+  .wide { grid-column: 1 / -1; }
+  button { font: inherit; border: 1px solid var(--line); background: var(--bg); color: var(--ink); border-radius: 8px;
+           padding: 9px 12px; cursor: pointer; min-width: 0; }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.stop { background: var(--bad); border-color: var(--bad); color: #fff; font-weight: 700; padding: 10px 22px; font-size: 16px; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+  .row.three { grid-template-columns: 1fr 1fr 1fr; }
+  .lamps { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 8px; }
+  .lamp { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; font-size: 13px; }
+  .lamp i { width: 14px; height: 14px; border-radius: 50%; background: var(--lampoff); flex: none; }
+  .lamp.on i { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+  .slider { margin: 10px 0; }
+  .slider label { display: flex; justify-content: space-between; font-size: 13px; color: var(--mute); }
+  .slider label b { color: var(--ink); }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  .steps { list-style: none; margin: 0 0 10px; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 6px; }
+  .steps li { border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; font-size: 13px; color: var(--mute); }
+  .steps li.run { border-color: var(--warn); color: var(--ink); background: color-mix(in srgb, var(--warn) 14%, transparent); }
+  .steps li.ok { border-color: var(--ok); color: var(--ink); }
+  .steps li.fail { border-color: var(--bad); color: var(--bad); }
+  .steps li span { float: right; font-variant-numeric: tabular-nums; }
+  .runbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .runbar input[type=number] { width: 64px; font: inherit; padding: 7px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
+  .msg { margin-top: 8px; font-size: 14px; min-height: 1.4em; }
+  .msg.bad { color: var(--bad); } .msg.ok { color: var(--ok); }
+  #log { height: 220px; overflow: auto; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px;
+         font: 12px/1.4 Consolas, monospace; white-space: pre-wrap; margin: 0; }
+  #log .tx { color: var(--accent); } #log .err { color: var(--bad); }
+  .note { font-size: 12px; color: var(--mute); margin: 6px 0 0; }
+  .unsupported { background: var(--bad); color: #fff; padding: 10px 16px; display: none; }
+  @media (max-width: 560px) { header h1 { font-size: 16px; } button.stop { padding: 9px 14px; } }
+</style>
+</head>
+<body>
+<div class="unsupported" id="unsup">เบราว์เซอร์นี้ไม่รองรับ Web Serial — เปิดไฟล์นี้ด้วย Google Chrome หรือ Microsoft Edge</div>
+<header>
+  <h1>🎲 LuckyDice Control</h1>
+  <button class="primary" id="btnConn">เชื่อมต่อบอร์ด</button>
+  <span class="conn" id="connState">สถานะ: <b>ยังไม่เชื่อมต่อ</b></span>
+  <span class="spacer"></span>
+  <button class="stop" id="btnStop">■ หยุดทั้งหมด</button>
+</header>
+
+<main>
+  <section class="card wide">
+    <h2>สวิตช์ <small id="pollInfo">อัปเดตทุก 0.6 วินาที ตอนไม่มีอะไรวิ่ง</small></h2>
+    <div class="lamps" id="lamps"></div>
+  </section>
+
+  <section class="card wide">
+    <h2>รันทั้งระบบ <small>ลิฟต์ขึ้น → แคร่ไปกรง → ถอยออก → แขนพลิก → แคร่กลับ → ลิฟต์ลง</small></h2>
+    <ul class="steps" id="steps"></ul>
+    <div class="runbar">
+      <button class="primary" id="btnCycle">▶ รันทั้งระบบ</button>
+      <label>จำนวนรอบ <input type="number" id="loops" min="1" max="50" value="1"></label>
+      <label><input type="checkbox" id="pauseArm" checked> ค้างแขนไว้ที่ฝั่งปลาย</label>
+      <input type="number" id="pauseMs" min="0" max="30000" step="500" value="3000"> ms
+    </div>
+    <div class="msg" id="cycleMsg"></div>
+    <p class="note">ก่อนแคร่ออกวิ่ง ระบบจะเช็กว่าลิฟต์กดสวิตช์บนอยู่จริง ถ้าไม่ถึงจะหยุดทันที กันแคร่ชนรถลิฟต์ · กด "หยุดทั้งหมด" ได้ทุกเวลา</p>
+  </section>
+
+  <section class="card">
+    <h2>ลิฟต์ <small>D5 / D6</small></h2>
+    <div class="row"><button data-cmd="U" data-run="lift">▲ ขึ้นสุด</button><button data-cmd="D" data-run="lift">▼ ลงสุด</button></div>
+    <div class="row"><button data-cmd="u" data-jog>ขยับขึ้น 0.5 s</button><button data-cmd="d" data-jog>ขยับลง 0.5 s</button></div>
+    <div class="slider"><label>แรงขาขึ้น (PWM) <b id="vU">255</b></label><input type="range" id="sU" min="60" max="255" value="255" data-key="U"></div>
+    <div class="slider"><label>แรงขาลง (PWM) <b id="vD">225</b></label><input type="range" id="sD" min="60" max="255" value="225" data-key="D"></div>
+    <div class="slider"><label>เวลาขาลง (วินาที) <b id="vDT">20</b></label><input type="range" id="sDT" min="3" max="40" step="0.5" value="20"></div>
+  </section>
+
+  <section class="card">
+    <h2>แคร่ <small>D3 / D11</small></h2>
+    <div class="row"><button data-cmd="C" data-run="cat">◀ ไปกรง</button><button data-cmd="H" data-run="cat">กลับบ้าน ▶</button></div>
+    <div class="row"><button data-cmd="c" data-jog>ขยับไปกรง 0.3 s</button><button data-cmd="h" data-jog>ขยับกลับ 0.3 s</button></div>
+    <div class="row"><button data-cmd="p" data-done="Carriage parked">ถอยออกจากแขน</button><span></span></div>
+    <div class="slider"><label>แรงแคร่ (PWM) <b id="vC">175</b></label><input type="range" id="sC" min="60" max="255" value="175" data-key="C"></div>
+    <div class="slider"><label>ระยะถอยออกจากแขน (ms, ~50 mm/s) <b id="vP">300</b></label><input type="range" id="sP" min="0" max="2000" step="50" value="300" data-key="P"></div>
+  </section>
+
+  <section class="card">
+    <h2>แขนพลิก <small>MG90S ที่ D10</small></h2>
+    <div class="row"><button data-cmd="W" data-done="Show out">พลิกไปฝั่งปลาย</button><button data-cmd="w" data-done="Show home">กลับฝั่งเริ่มต้น</button></div>
+    <div class="row"><button data-cmd="x" data-done="STOP">ปล่อยแกนเซอร์โว</button><span></span></div>
+    <div class="slider"><label>เวลาพลิก (ms) <b id="vT">1500</b></label><input type="range" id="sT" min="500" max="8000" step="250" value="1500" data-key="T"></div>
+    <div class="slider"><label>ฝั่งปลาย: หมุนสุดที่ (µs) <b id="vO">2750</b></label><input type="range" id="sO" min="2000" max="2850" step="25" value="2750" data-key="O"></div>
+    <div class="slider"><label>ฝั่งเริ่มต้น (µs) <b id="vI">350</b></label><input type="range" id="sI" min="300" max="1000" step="25" value="350" data-key="I"></div>
+    <p class="note">ที่ปลายทั้งสองฝั่ง เซอร์โวดันแขนแนบตัวหยุดค้างไว้ จนกด "ปล่อยแกนเซอร์โว" หรือ "หยุดทั้งหมด"</p>
+  </section>
+
+  <section class="card">
+    <h2>นิ้วดึง และอื่นๆ <small>SG90 ที่ D8</small></h2>
+    <div class="row"><button data-cmd="g" data-done="Finger up">นิ้วขึ้น</button><button data-cmd="G" data-done="Finger down">นิ้วลง</button></div>
+    <div class="row"><button data-cmd="l" data-done="LED done" data-wait="5000">ทดสอบไฟ LED</button><button data-cmd="b" data-done="VBAT">อ่านแรงดันแบต</button></div>
+    <p class="note" id="vbat"></p>
+  </section>
+
+  <section class="card wide">
+    <h2>บันทึก <small><button id="btnClear" style="padding:3px 8px;font-size:12px">ล้าง</button></small></h2>
+    <pre id="log"></pre>
+  </section>
+</main>
+
+<script>
+const SW = ["LiftBot", "LiftTop", "CatHome", "CatCage", "Coin", "Button", "Auto"];
+const SW_TH = { LiftBot: "ลิฟต์ล่าง", LiftTop: "ลิฟต์บน", CatHome: "แคร่ที่บ้าน", CatCage: "แคร่ที่กรง", Coin: "เหรียญ", Button: "ปุ่มกด", Auto: "สวิตช์ Auto" };
+const LIFT_CAP = 26000, CAT_CAP = 9000;        // ms: stop from here even if the board's own limit is longer
+
+let port, reader, writer, readDone = null, lineBuf = "", waiters = [], busy = false, aborted = false, pollTimer = null;
+const sw = {};
+const $ = id => document.getElementById(id);
+
+// ---------- UI ----------
+const lampsEl = $("lamps");
+for (const k of SW) { const d = document.createElement("div"); d.className = "lamp"; d.id = "L" + k; d.innerHTML = `<i></i>${SW_TH[k]}`; lampsEl.appendChild(d); }
+const STEPS = [["U", "ลิฟต์ขึ้น"], ["g", "นิ้วดึงขึ้น"], ["C", "แคร่ไปกรง"], ["p", "แคร่ถอยออกจากแขน"], ["W", "แขนพลิกไป"], ["w", "แขนพลิกกลับ"], ["H", "แคร่กลับบ้าน"], ["D", "ลิฟต์ลง"]];
+const stepsEl = $("steps");
+function drawSteps() { stepsEl.innerHTML = STEPS.map((s, i) => `<li id="st${i}">${i + 1}. ${s[1]}<span></span></li>`).join(""); }
+drawSteps();
+function stepMark(i, cls, t) { const li = $("st" + i); li.className = cls; if (t !== undefined) li.querySelector("span").textContent = t; }
+
+function log(s, cls) {
+  const el = $("log"), line = document.createElement("div");
+  if (cls) line.className = cls;
+  line.textContent = new Date().toLocaleTimeString() + "  " + s;
+  el.appendChild(line); el.scrollTop = el.scrollHeight;
+  while (el.childNodes.length > 600) el.removeChild(el.firstChild);
+}
+$("btnClear").onclick = () => $("log").innerHTML = "";
+
+function setBusy(b) {
+  busy = b;
+  document.querySelectorAll("button[data-cmd], #btnCycle, input[type=range]").forEach(e => e.disabled = b || !port);
+}
+setBusy(false);
+
+// ---------- serial ----------
+if (!("serial" in navigator)) { $("unsup").style.display = "block"; $("btnConn").disabled = true; }
+
+$("btnConn").onclick = async () => {
+  if (port) return disconnect();
+  try {
+    port = await navigator.serial.requestPort();
+    await port.open({ baudRate: 115200 });
+    writer = port.writable.getWriter();
+    readDone = readLoop();
+    $("connState").className = "conn on"; $("connState").innerHTML = "สถานะ: <b>เชื่อมต่อแล้ว</b> (บอร์ดรีเซ็ต รอ 2.5 วินาที)";
+    $("btnConn").textContent = "ตัดการเชื่อมต่อ";
+    await sleep(2500);
+    $("connState").innerHTML = "สถานะ: <b>เชื่อมต่อแล้ว</b>";
+    setBusy(false);
+    for (const k of ["U", "D", "C", "T", "P", "O", "I"]) await sendSetting(k, $("s" + k).value);
+    startPoll();
+  } catch (e) { log("เชื่อมต่อไม่ได้: " + e.message, "err"); port = null; }
+};
+
+async function disconnect() {
+  stopPoll();
+  try { await send("x"); } catch (e) {}
+  try { reader && await reader.cancel(); } catch (e) {}
+  try { readDone && await readDone; } catch (e) {}   // the read loop must release its lock before the port can close
+  try { writer && writer.releaseLock(); } catch (e) {}
+  try { await port.close(); } catch (e) { log("ปิดพอร์ตไม่ได้: " + e.message + " — ปิดแท็บนี้แทน", "err"); }
+  port = null; reader = null; writer = null;
+  $("connState").className = "conn"; $("connState").innerHTML = "สถานะ: <b>ยังไม่เชื่อมต่อ</b>";
+  $("btnConn").textContent = "เชื่อมต่อบอร์ด"; setBusy(false);
+}
+
+async function readLoop() {
+  const dec = new TextDecoder();
+  reader = port.readable.getReader();
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      lineBuf += dec.decode(value, { stream: true });
+      let i;
+      while ((i = lineBuf.indexOf("\n")) >= 0) { const line = lineBuf.slice(0, i).replace(/\r$/, ""); lineBuf = lineBuf.slice(i + 1); onLine(line); }
+    }
+  } catch (e) { log("การอ่านพอร์ตหยุด: " + e.message, "err"); }
+  finally { try { reader.releaseLock(); } catch (e) {} }
+}
+
+function onLine(line) {
+  if (!line.trim()) return;
+  if (/^LiftBot=/.test(line)) { parseSwitches(line); if (!busy) return; }
+  else log(line);
+  const m = line.match(/VBAT = ([\d.]+)/); if (m) $("vbat").textContent = "แบตเตอรี่: " + m[1] + " V";
+  for (const w of [...waiters]) { w.lines.push(line); if (w.done.test(line)) { waiters = waiters.filter(x => x !== w); w.resolve(w.lines); } }
+}
+function parseSwitches(line) {
+  for (const k of SW) { const on = new RegExp(k + "=ON").test(line); sw[k] = on; $("L" + k).classList.toggle("on", on); }
+}
+
+async function send(s) { if (!writer) throw new Error("ยังไม่เชื่อมต่อ"); await writer.write(new TextEncoder().encode(s)); }
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+// send a command, resolve with its output lines when `done` matches, or after `cap` ms (then sends x)
+function cmd(c, done, cap) {
+  return new Promise(async resolve => {
+    const w = { re: /./, done, lines: [], resolve };
+    waiters.push(w);
+    log("» " + c, "tx");
+    await send(c);
+    const t0 = Date.now();
+    while (waiters.includes(w)) {
+      if (aborted) { waiters = waiters.filter(x => x !== w); return resolve(w.lines.concat(["ABORTED"])); }
+      if (Date.now() - t0 > cap) {
+        log("หมดเวลา " + (cap / 1000) + " s — สั่งหยุด", "err");
+        await send("x"); await sleep(400);
+        waiters = waiters.filter(x => x !== w); return resolve(w.lines.concat(["TIMEOUT"]));
+      }
+      await sleep(50);
+    }
+  });
+}
+async function status() { await send("?"); await sleep(250); return { ...sw }; }
+
+async function sendSetting(k, v) { await send("=" + k + v + "\n"); }
+document.querySelectorAll("input[type=range][data-key]").forEach(r => {
+  const show = () => $("v" + r.dataset.key).textContent = r.value;
+  r.oninput = show;
+  r.onchange = async () => { show(); if (port && !busy) await sendSetting(r.dataset.key, r.value); };
+});
+
+// ---------- polling ----------
+function startPoll() { stopPoll(); pollTimer = setInterval(() => { if (port && !busy) send("?").catch(() => {}); }, 600); }
+function stopPoll() { if (pollTimer) clearInterval(pollTimer); pollTimer = null; }
+
+// ---------- single buttons ----------
+const RUN_DONE = /^ran .* s|already at the switch/;
+document.querySelectorAll("button[data-cmd]").forEach(b => b.onclick = async () => {
+  if (busy) return;
+  aborted = false; setBusy(true);
+  try {
+    const c = b.dataset.cmd;
+    if (b.dataset.run) await cmd(c, RUN_DONE, c === "D" ? downMs() : b.dataset.run === "lift" ? LIFT_CAP : CAT_CAP);
+    else if (b.hasAttribute("data-jog")) { log("» " + c, "tx"); await send(c); await sleep(800); }
+    else await cmd(c, new RegExp(b.dataset.done), +(b.dataset.wait || 12000));
+    await status();
+  } finally { setBusy(false); }
+});
+
+$("btnStop").onclick = async () => {
+  aborted = true;
+  try { await send("x"); await send("x"); log("หยุดทั้งหมด", "err"); } catch (e) {}
+  $("cycleMsg").className = "msg bad"; if (busy) $("cycleMsg").textContent = "ผู้ใช้สั่งหยุด";
+};
+
+// ---------- full cycle ----------
+// lift down runs until the bottom switch or this time, whichever comes first
+const downMs = () => +$("sDT").value * 1000;
+$("sDT").oninput = () => $("vDT").textContent = $("sDT").value;
+function took(lines) { const m = lines.join("\n").match(/ran ([\d.]+) s/); return m ? m[1] + " s" : ""; }
+function reached(lines) { return lines.some(l => /switch reached|already at the switch/.test(l)); }
+
+async function runStep(i, c) {
+  stepMark(i, "run", "…");
+  const t0 = Date.now();
+  let lines, ok;
+  if (c === "U") { lines = await cmd(c, RUN_DONE, LIFT_CAP); ok = reached(lines); }
+  else if (c === "D") { lines = await cmd(c, RUN_DONE, downMs()); ok = reached(lines) || lines.includes("TIMEOUT"); }
+  else if (c === "C" || c === "H") { lines = await cmd(c, RUN_DONE, CAT_CAP); ok = reached(lines); }
+  else if (c === "g") { lines = await cmd(c, /Finger up/, 5000); ok = lines.some(l => /Finger up/.test(l)); }
+  else if (c === "p") { lines = await cmd(c, /Carriage parked/, 5000); ok = lines.some(l => /Carriage parked/.test(l)); }
+  else { lines = await cmd(c, c === "W" ? /Show out/ : /Show home/, 12000); ok = lines.some(l => /Show (out|home)/.test(l)); }
+  if (aborted) ok = false;
+  const t = took(lines) || ((Date.now() - t0) / 1000).toFixed(1) + " s";
+  stepMark(i, ok ? "ok" : "fail", t);
+  return ok;
+}
+
+async function prepare() {
+  // start position: lift down first (the carriage must never move with the lift half way), then carriage home
+  let s = await status();
+  if (!s.LiftBot) { log("เตรียม: เอาลิฟต์ลงก่อน"); const l = await cmd("D", RUN_DONE, LIFT_CAP); if (!reached(l)) return "ลิฟต์ลงไม่ถึงสวิตช์ล่าง"; }
+  s = await status();
+  if (!s.CatHome) { log("เตรียม: แคร่กลับบ้านก่อน"); const l = await cmd("H", RUN_DONE, CAT_CAP); if (!reached(l)) return "แคร่กลับบ้านไม่ได้ — ดูว่าแคร่ติดอะไรหรือสายสวิตช์บ้าน (A0)"; }
+  return null;
+}
+
+$("btnCycle").onclick = async () => {
+  if (busy) return;
+  aborted = false; setBusy(true);
+  const msg = $("cycleMsg"); msg.className = "msg"; msg.textContent = "กำลังเตรียมตำแหน่งเริ่มต้น…";
+  const n = Math.max(1, Math.min(50, +$("loops").value || 1));
+  const tStart = Date.now();
+  try {
+    const err = await prepare();
+    if (err) { msg.className = "msg bad"; msg.textContent = "เริ่มไม่ได้: " + err; return; }
+    for (let r = 1; r <= n && !aborted; r++) {
+      drawSteps(); msg.textContent = `รอบ ${r} / ${n}`;
+      for (let i = 0; i < STEPS.length; i++) {
+        const c = STEPS[i][0];
+        if (c === "C") {   // safety: the carriage only leaves home when the lift really sits at the top
+          const s = await status();
+          if (!s.LiftTop) {
+            stepMark(i, "fail", "ลิฟต์ไม่ถึงบน");
+            msg.className = "msg bad"; msg.textContent = `รอบ ${r}: ลิฟต์ไม่ได้กดสวิตช์บน — ไม่ให้แคร่วิ่ง (กันชนรถลิฟต์) · เอาลิฟต์ลงแล้ว`;
+            await cmd("D", RUN_DONE, LIFT_CAP); return;
+          }
+        }
+        const ok = await runStep(i, c);
+        if (!ok) {
+          msg.className = "msg bad";
+          msg.textContent = aborted ? "ผู้ใช้สั่งหยุด" : `รอบ ${r}: ขั้น "${STEPS[i][1]}" ไม่สำเร็จ — หยุดไว้ตรงนี้ ดูบันทึกด้านล่าง`;
+          return;
+        }
+        if (c === "W" && $("pauseArm").checked) await sleep(+$("pauseMs").value || 0);
+      }
+    }
+    if (!aborted) { msg.className = "msg ok"; msg.textContent = `สำเร็จ ${n} รอบ · ใช้เวลารวม ${((Date.now() - tStart) / 1000).toFixed(1)} s`; }
+  } finally { await status(); setBusy(false); }
+};
+</script>
+</body>
+</html>
