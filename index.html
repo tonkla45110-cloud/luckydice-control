@@ -77,11 +77,13 @@
   </section>
 
   <section class="card wide">
-    <h2>รันทั้งระบบ <small>ลิฟต์ขึ้น → แคร่ไปกรง → ถอยออก → แขนพลิก → แคร่กลับ → ลิฟต์ลง</small></h2>
+    <h2>รันทั้งระบบ <small>(หยอดเหรียญ) → ลิฟต์ขึ้น → แคร่ไปกรง → ถอยออก → แขนพลิก → (ตัวเลื่อนโชว์) → แขนกลับ → แคร่กลับ → ลิฟต์ลง</small></h2>
     <ul class="steps" id="steps"></ul>
     <div class="runbar">
       <button class="primary" id="btnCycle">▶ รันทั้งระบบ</button>
       <label>จำนวนรอบ <input type="number" id="loops" min="1" max="50" value="1"></label>
+      <label><input type="checkbox" id="coinArm"> 🪙 เริ่มเมื่อหยอดเหรียญ</label>
+      <label><input type="checkbox" id="withShow"> รวมตัวเลื่อนโชว์ (D9)</label>
       <label><input type="checkbox" id="pauseArm" checked> ค้างแขนไว้ที่ฝั่งปลาย</label>
       <input type="number" id="pauseMs" min="0" max="30000" step="500" value="3000"> ms
     </div>
@@ -118,6 +120,12 @@
   </section>
 
   <section class="card">
+    <h2>ตัวเลื่อนโชว์ <small>SG90 ที่ D9 (ช่วงทดสอบ)</small></h2>
+    <div class="row"><button data-cmd="f" data-done="Flip front" data-wait="15000">◀ ไปฝั่ง 0°</button><button data-cmd="F" data-done="Flip back" data-wait="15000">ไปฝั่ง 180° ▶</button></div>
+    <p class="note">หมุนช้าๆ ราว 11 วินาทีต่อครึ่งรอบ แล้วปล่อยแกนเมื่อถึงปลาย · ครั้งแรกหลังเชื่อมต่อ เซอร์โวจะกระโดดไปฝั่ง 0° ก่อน ให้ถอดหมุดก้านต่อออกตอนลองครั้งแรก</p>
+  </section>
+
+  <section class="card">
     <h2>นิ้วดึง และอื่นๆ <small>SG90 ที่ D8</small></h2>
     <div class="row"><button data-cmd="g" data-done="Finger up">นิ้วขึ้น</button><button data-cmd="G" data-done="Finger down">นิ้วลง</button></div>
     <div class="row"><button data-cmd="l" data-done="LED done" data-wait="5000">ทดสอบไฟ LED</button><button data-cmd="b" data-done="VBAT">อ่านแรงดันแบต</button></div>
@@ -142,10 +150,17 @@ const $ = id => document.getElementById(id);
 // ---------- UI ----------
 const lampsEl = $("lamps");
 for (const k of SW) { const d = document.createElement("div"); d.className = "lamp"; d.id = "L" + k; d.innerHTML = `<i></i>${SW_TH[k]}`; lampsEl.appendChild(d); }
-const STEPS = [["U", "ลิฟต์ขึ้น"], ["g", "นิ้วดึงขึ้น"], ["C", "แคร่ไปกรง"], ["p", "แคร่ถอยออกจากแขน"], ["W", "แขนพลิกไป"], ["w", "แขนพลิกกลับ"], ["H", "แคร่กลับบ้าน"], ["D", "ลิฟต์ลง"]];
+let STEPS = [];
+function buildSteps() {
+  STEPS = [["U", "ลิฟต์ขึ้น"], ["g", "นิ้วดึงขึ้น"], ["C", "แคร่ไปกรง"], ["p", "แคร่ถอยออกจากแขน"], ["W", "แขนพลิกไป"]];
+  if ($("withShow").checked) STEPS.push(["F", "ตัวเลื่อนโชว์ออก"], ["f", "ตัวเลื่อนโชว์กลับ"]);
+  STEPS.push(["w", "แขนพลิกกลับ"], ["H", "แคร่กลับบ้าน"], ["D", "ลิฟต์ลง"]);
+}
+buildSteps();
 const stepsEl = $("steps");
 function drawSteps() { stepsEl.innerHTML = STEPS.map((s, i) => `<li id="st${i}">${i + 1}. ${s[1]}<span></span></li>`).join(""); }
 drawSteps();
+$("withShow").onchange = () => { if (!busy) { buildSteps(); drawSteps(); } };
 function stepMark(i, cls, t) { const li = $("st" + i); li.className = cls; if (t !== undefined) li.querySelector("span").textContent = t; }
 
 function log(s, cls) {
@@ -214,6 +229,7 @@ function onLine(line) {
   if (!line.trim()) return;
   if (/^LiftBot=/.test(line)) { parseSwitches(line); if (!busy) return; }
   else log(line);
+  if (/^COIN [0-9]+/.test(line) && $("coinArm").checked && !busy && port) { log("🪙 เหรียญเข้า → เริ่มรันทั้งระบบ"); setTimeout(() => $("btnCycle").click(), 0); }
   const m = line.match(/VBAT = ([\d.]+)/); if (m) $("vbat").textContent = "แบตเตอรี่: " + m[1] + " V";
   for (const w of [...waiters]) { w.lines.push(line); if (w.done.test(line)) { waiters = waiters.filter(x => x !== w); w.resolve(w.lines); } }
 }
@@ -291,6 +307,7 @@ async function runStep(i, c) {
   else if (c === "D") { lines = await cmd(c, RUN_DONE, downMs()); ok = reached(lines) || lines.includes("TIMEOUT"); }
   else if (c === "C" || c === "H") { lines = await cmd(c, RUN_DONE, CAT_CAP); ok = reached(lines); }
   else if (c === "g") { lines = await cmd(c, /Finger up/, 5000); ok = lines.some(l => /Finger up/.test(l)); }
+  else if (c === "F" || c === "f") { lines = await cmd(c, /Flip (back|front)/, 15000); ok = lines.some(l => /Flip (back|front)/.test(l)); }
   else if (c === "p") { lines = await cmd(c, /Carriage parked/, 5000); ok = lines.some(l => /Carriage parked/.test(l)); }
   else { lines = await cmd(c, c === "W" ? /Show out/ : /Show home/, 12000); ok = lines.some(l => /Show (out|home)/.test(l)); }
   if (aborted) ok = false;
@@ -318,7 +335,7 @@ $("btnCycle").onclick = async () => {
     const err = await prepare();
     if (err) { msg.className = "msg bad"; msg.textContent = "เริ่มไม่ได้: " + err; return; }
     for (let r = 1; r <= n && !aborted; r++) {
-      drawSteps(); msg.textContent = `รอบ ${r} / ${n}`;
+      buildSteps(); drawSteps(); msg.textContent = `รอบ ${r} / ${n}`;
       for (let i = 0; i < STEPS.length; i++) {
         const c = STEPS[i][0];
         if (c === "C") {   // safety: the carriage only leaves home when the lift really sits at the top
