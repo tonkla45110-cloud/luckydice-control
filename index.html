@@ -143,7 +143,7 @@
 
 <script>
 const SW = ["LiftBot", "LiftTop", "CatHome", "CatCage", "Coin", "Button", "Auto"];
-const SW_TH = { LiftBot: "ลิฟต์ล่าง", LiftTop: "ลิฟต์บน", CatHome: "แคร่ที่บ้าน", CatCage: "แคร่ที่กรง", Coin: "เหรียญ", Button: "ปุ่มกด", Auto: "สวิตช์ Auto" };
+const SW_TH = { LiftBot: "ลิฟต์ล่าง", LiftTop: "ลิฟต์บน", CatHome: "แคร่ที่บ้าน", CatCage: "แคร่ที่กรง", Coin: "เหรียญ", Button: "สวิตช์เปิดเครื่อง", Auto: "สวิตช์ Auto" };
 const LIFT_CAP = 26000, CAT_CAP = 9000;        // ms: stop from here even if the board's own limit is longer
 
 let port, reader, writer, readDone = null, lineBuf = "", waiters = [], busy = false, aborted = false, pollTimer = null;
@@ -198,6 +198,7 @@ $("btnConn").onclick = async () => {
     setBusy(false);
     for (const k of ["U", "D", "C", "T", "P", "O", "I", "A", "B"]) await sendSetting(k, $("s" + k).value);
     startPoll();
+    if ((await status()).Button) { log("สวิตช์เปิดเครื่องอยู่ในตำแหน่งเปิด → รอหยอดเหรียญ"); setCoinMode(true); }
   } catch (e) { log("เชื่อมต่อไม่ได้: " + e.message, "err"); port = null; }
 };
 
@@ -232,6 +233,7 @@ function onLine(line) {
   if (!line.trim()) return;
   if (/^LiftBot=/.test(line)) { parseSwitches(line); if (!busy) return; }
   else log(line);
+  if (line === "BTN 1") onSwitch(true); else if (line === "BTN 0") onSwitch(false);
   if (/^COIN [0-9]+/.test(line) && coinMode && !busy && port) { log("🪙 เหรียญเข้า → เริ่มรันทั้งระบบ"); setTimeout(runCycle, 0); }
   const m = line.match(/VBAT = ([\d.]+)/); if (m) $("vbat").textContent = "แบตเตอรี่: " + m[1] + " V";
   for (const w of [...waiters]) { w.lines.push(line); if (w.done.test(line)) { waiters = waiters.filter(x => x !== w); w.resolve(w.lines); } }
@@ -367,6 +369,7 @@ async function runCycle() {
     if (!aborted) { msg.className = "msg ok"; msg.textContent = `สำเร็จ ${n} รอบ · ใช้เวลารวม ${((Date.now() - tStart) / 1000).toFixed(1)} s`; }
   } finally {
     await status(); setBusy(false);
+    if (resetPending) { resetPending = false; setTimeout(resetAll, 0); return; }
     if (coinMode && !aborted) msg.textContent += " · 🪙 รอหยอดเหรียญรอบถัดไป…";
   }
 }
@@ -381,6 +384,41 @@ function setCoinMode(on) {
 }
 $("btnCycle").onclick = () => { if (!busy) setCoinMode(!coinMode); };
 $("btnNow").onclick = () => { if (!busy) runCycle(); };
-</script>
+
+// ---------- main ON/OFF switch (A3): ON = ready and waiting for a coin, OFF = stop and reset everything ----------
+let resetPending = false;
+function onSwitch(isOn) {
+  if (isOn) {
+    log("🟢 เปิดสวิตช์ → พร้อม รอหยอดเหรียญ");
+    if (!busy) setCoinMode(true);
+  } else {
+    log("🔴 ปิดสวิตช์ → หยุดและรีเซ็ตทั้งระบบ", "err");
+    setCoinMode(false);
+    if (busy) { aborted = true; resetPending = true; send("x").catch(() => {}); }
+    else resetAll();
+  }
+}
+async function resetAll() {
+  if (busy || !port) return;
+  aborted = false; setBusy(true);
+  const msg = $("cycleMsg"); msg.className = "msg"; msg.textContent = "กำลังรีเซ็ตทั้งระบบ…";
+  try {
+    await cmd("f", /Flip front/, 15000);          // show slider back in first
+    await cmd("w", /Show home/, 12000);           // flip arm to the start side
+    await cmd("g", /Finger up/, 5000);
+    let s = await status();
+    if (!s.CatHome) {
+      // never let the carriage cross a half-way lift: at the top it can go home first, otherwise lower the lift first
+      if (s.LiftTop) { await cmd("H", RUN_DONE, CAT_CAP); await cmd("D", RUN_DONE, downMs()); }
+      else { await cmd("D", RUN_DONE, downMs()); await cmd("H", RUN_DONE, CAT_CAP); }
+    } else await cmd("D", RUN_DONE, downMs());
+    s = await status();
+    msg.className = s.CatHome ? "msg ok" : "msg bad";
+    msg.textContent = s.CatHome ? "รีเซ็ตเสร็จ ทุกอย่างอยู่ตำแหน่งเริ่มต้น · เปิดสวิตช์เพื่อเริ่มใหม่" : "รีเซ็ตแล้ว แต่แคร่ไม่ถึงบ้าน ดูว่าแคร่ติดอะไร";
+  } finally {
+    setBusy(false);
+    if (sw.Button) setCoinMode(true);             // switched back on while resetting
+  }
+}</script>
 </body>
 </html>
