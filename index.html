@@ -80,9 +80,9 @@
     <h2>รันทั้งระบบ <small>(หยอดเหรียญ) → ลิฟต์ขึ้น → แคร่ไปกรง → ถอยออก → แขนพลิก → (ตัวเลื่อนโชว์) → แขนกลับ → แคร่กลับ → ลิฟต์ลง</small></h2>
     <ul class="steps" id="steps"></ul>
     <div class="runbar">
-      <button class="primary" id="btnCycle">▶ รันทั้งระบบ</button>
+      <button class="primary" id="btnCycle">🪙 เปิดเครื่อง: รอหยอดเหรียญ</button>
+      <button id="btnNow">▶ เริ่มเลย (ไม่รอเหรียญ)</button>
       <label>จำนวนรอบ <input type="number" id="loops" min="1" max="50" value="1"></label>
-      <label><input type="checkbox" id="coinArm"> 🪙 เริ่มเมื่อหยอดเหรียญ</label>
       <label><input type="checkbox" id="withShow"> รวมตัวเลื่อนโชว์ (D9)</label>
       <label><input type="checkbox" id="pauseArm" checked> ค้างแขนไว้ที่ฝั่งปลาย</label>
       <input type="number" id="pauseMs" min="0" max="30000" step="500" value="3000"> ms
@@ -174,7 +174,7 @@ $("btnClear").onclick = () => $("log").innerHTML = "";
 
 function setBusy(b) {
   busy = b;
-  document.querySelectorAll("button[data-cmd], #btnCycle, input[type=range]").forEach(e => e.disabled = b || !port);
+  document.querySelectorAll("button[data-cmd], #btnCycle, #btnNow, input[type=range]").forEach(e => e.disabled = b || !port);
 }
 setBusy(false);
 
@@ -229,7 +229,7 @@ function onLine(line) {
   if (!line.trim()) return;
   if (/^LiftBot=/.test(line)) { parseSwitches(line); if (!busy) return; }
   else log(line);
-  if (/^COIN [0-9]+/.test(line) && $("coinArm").checked && !busy && port) { log("🪙 เหรียญเข้า → เริ่มรันทั้งระบบ"); setTimeout(() => $("btnCycle").click(), 0); }
+  if (/^COIN [0-9]+/.test(line) && coinMode && !busy && port) { log("🪙 เหรียญเข้า → เริ่มรันทั้งระบบ"); setTimeout(runCycle, 0); }
   const m = line.match(/VBAT = ([\d.]+)/); if (m) $("vbat").textContent = "แบตเตอรี่: " + m[1] + " V";
   for (const w of [...waiters]) { w.lines.push(line); if (w.done.test(line)) { waiters = waiters.filter(x => x !== w); w.resolve(w.lines); } }
 }
@@ -287,6 +287,7 @@ document.querySelectorAll("button[data-cmd]").forEach(b => b.onclick = async () 
 });
 
 $("btnStop").onclick = async () => {
+  if (typeof setCoinMode === "function") setCoinMode(false);
   aborted = true;
   try { await send("x"); await send("x"); log("หยุดทั้งหมด", "err"); } catch (e) {}
   $("cycleMsg").className = "msg bad"; if (busy) $("cycleMsg").textContent = "ผู้ใช้สั่งหยุด";
@@ -325,7 +326,7 @@ async function prepare() {
   return null;
 }
 
-$("btnCycle").onclick = async () => {
+async function runCycle() {
   if (busy) return;
   aborted = false; setBusy(true);
   const msg = $("cycleMsg"); msg.className = "msg"; msg.textContent = "กำลังเตรียมตำแหน่งเริ่มต้น…";
@@ -356,8 +357,22 @@ $("btnCycle").onclick = async () => {
       }
     }
     if (!aborted) { msg.className = "msg ok"; msg.textContent = `สำเร็จ ${n} รอบ · ใช้เวลารวม ${((Date.now() - tStart) / 1000).toFixed(1)} s`; }
-  } finally { await status(); setBusy(false); }
-};
+  } finally {
+    await status(); setBusy(false);
+    if (coinMode && !aborted) msg.textContent += " · 🪙 รอหยอดเหรียญรอบถัดไป…";
+  }
+}
+
+// ---------- coin mode: the machine waits for a coin, runs one cycle, then waits again ----------
+let coinMode = false;
+function setCoinMode(on) {
+  coinMode = on;
+  $("btnCycle").textContent = on ? "■ ปิดโหมดรอเหรียญ" : "🪙 เปิดเครื่อง: รอหยอดเหรียญ";
+  const msg = $("cycleMsg"); msg.className = "msg";
+  msg.textContent = on ? "🪙 รอหยอดเหรียญ… หยอดแล้วเครื่องจะเริ่มเอง" : "";
+}
+$("btnCycle").onclick = () => { if (!busy) setCoinMode(!coinMode); };
+$("btnNow").onclick = () => { if (!busy) runCycle(); };
 </script>
 </body>
 </html>
