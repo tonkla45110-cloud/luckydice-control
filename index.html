@@ -122,6 +122,8 @@
   <section class="card">
     <h2>ตัวเลื่อนโชว์ <small>SG90 ที่ D9 (ช่วงทดสอบ)</small></h2>
     <div class="row"><button data-cmd="f" data-done="Flip front" data-wait="15000">◀ ไปฝั่ง 0°</button><button data-cmd="F" data-done="Flip back" data-wait="15000">ไปฝั่ง 180° ▶</button></div>
+    <div class="slider"><label>ฝั่ง 180°: หยุดที่ (µs · ลดถ้าเลื่อนเกินจนชน) <b id="vB">2200</b></label><input type="range" id="sB" min="1500" max="2400" step="25" value="2200" data-key="B"></div>
+    <div class="slider"><label>ฝั่ง 0°: หยุดที่ (µs · เพิ่มถ้าชนอีกฝั่ง) <b id="vA">600</b></label><input type="range" id="sA" min="544" max="1500" step="25" value="600" data-key="A"></div>
     <p class="note">หมุนช้าๆ ราว 11 วินาทีต่อครึ่งรอบ แล้วปล่อยแกนเมื่อถึงปลาย · ครั้งแรกหลังเชื่อมต่อ เซอร์โวจะกระโดดไปฝั่ง 0° ก่อน ให้ถอดหมุดก้านต่อออกตอนลองครั้งแรก</p>
   </section>
 
@@ -193,7 +195,7 @@ $("btnConn").onclick = async () => {
     await sleep(2500);
     $("connState").innerHTML = "สถานะ: <b>เชื่อมต่อแล้ว</b>";
     setBusy(false);
-    for (const k of ["U", "D", "C", "T", "P", "O", "I"]) await sendSetting(k, $("s" + k).value);
+    for (const k of ["U", "D", "C", "T", "P", "O", "I", "A", "B"]) await sendSetting(k, $("s" + k).value);
     startPoll();
   } catch (e) { log("เชื่อมต่อไม่ได้: " + e.message, "err"); port = null; }
 };
