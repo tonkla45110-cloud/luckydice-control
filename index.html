@@ -83,7 +83,7 @@
       <button class="primary" id="btnCycle">🪙 เปิดเครื่อง: รอหยอดเหรียญ</button>
       <button id="btnNow">▶ เริ่มเลย (ไม่รอเหรียญ)</button>
       <label>จำนวนรอบ <input type="number" id="loops" min="1" max="50" value="1"></label>
-      <label><input type="checkbox" id="withShow" checked> รวมตัวเลื่อนโชว์ (D9)</label>
+      <label><input type="checkbox" id="withShow" checked> รวมตัวเลื่อนโชว์ (D10)</label>
       <label><input type="checkbox" id="pauseArm" checked> ค้างแขนไว้ที่ฝั่งปลาย</label>
       <input type="number" id="pauseMs" min="0" max="30000" step="500" value="3000"> ms
       <label>ค้างโชว์ <input type="number" id="showHoldMs" min="0" max="30000" step="500" value="5000"> ms</label>
@@ -111,7 +111,7 @@
   </section>
 
   <section class="card">
-    <h2>แขนพลิก <small>MG90S ที่ D10</small></h2>
+    <h2>แขนพลิก <small>MG90S ที่ D9</small></h2>
     <div class="row"><button data-cmd="W" data-done="Show out">พลิกไปฝั่งปลาย</button><button data-cmd="w" data-done="Show home">กลับฝั่งเริ่มต้น</button></div>
     <div class="row"><button data-cmd="x" data-done="STOP">ปล่อยแกนเซอร์โว</button><span></span></div>
     <div class="slider"><label>เวลาพลิก (ms) <b id="vT">1500</b></label><input type="range" id="sT" min="500" max="8000" step="250" value="1500" data-key="T"></div>
@@ -121,7 +121,7 @@
   </section>
 
   <section class="card">
-    <h2>ตัวเลื่อนโชว์ <small>SG90 ที่ D9 (ช่วงทดสอบ)</small></h2>
+    <h2>ตัวเลื่อนโชว์ <small>SG90 ที่ D10</small></h2>
     <div class="row"><button data-cmd="f" data-done="Flip front" data-wait="15000">◀ ไปฝั่ง 0°</button><button data-cmd="F" data-done="Flip back" data-wait="15000">ไปฝั่ง 180° ▶</button></div>
     <div class="slider"><label>ฝั่ง 180°: หยุดที่ (µs · ลดถ้าเลื่อนเกินจนชน) <b id="vB">2200</b></label><input type="range" id="sB" min="1500" max="2400" step="25" value="2200" data-key="B"></div>
     <div class="slider"><label>ฝั่ง 0°: หยุดที่ (µs · เพิ่มถ้าชนอีกฝั่ง) <b id="vA">600</b></label><input type="range" id="sA" min="544" max="1500" step="25" value="600" data-key="A"></div>
