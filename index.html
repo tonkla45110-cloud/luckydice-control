@@ -82,6 +82,7 @@
     <div class="runbar">
       <button class="primary" id="btnCycle">🪙 เปิดเครื่อง: รอหยอดเหรียญ</button>
       <button id="btnNow">▶ เริ่มเลย (ไม่รอเหรียญ)</button>
+      <button id="btnReset">↺ รีเซ็ตทั้งระบบ</button>
       <label>จำนวนรอบ <input type="number" id="loops" min="1" max="50" value="1"></label>
       <label><input type="checkbox" id="withShow" checked> รวมตัวเลื่อนโชว์ (D10)</label>
       <label><input type="checkbox" id="pauseArm" checked> ค้างแขนไว้ที่ฝั่งปลาย</label>
@@ -157,7 +158,7 @@ let STEPS = [];
 function buildSteps() {
   STEPS = [["U", "ลิฟต์ขึ้น"], ["g", "นิ้วดึงขึ้น"], ["C", "แคร่ไปกรง"], ["p", "แคร่ถอยออกจากแขน"], ["W", "แขนพลิกไป"]];
   if ($("withShow").checked) STEPS.push(["F", "ตัวเลื่อนโชว์ออก"], ["f", "ตัวเลื่อนโชว์กลับ"]);
-  STEPS.push(["w", "แขนพลิกกลับ"], ["H", "แคร่กลับบ้าน"], ["D", "ลิฟต์ลง"]);
+  // the run stops at the far end (the way back did not line up): the ON/OFF switch or the reset button brings it home
 }
 buildSteps();
 const stepsEl = $("steps");
@@ -177,7 +178,7 @@ $("btnClear").onclick = () => $("log").innerHTML = "";
 
 function setBusy(b) {
   busy = b;
-  document.querySelectorAll("button[data-cmd], #btnCycle, #btnNow, input[type=range]").forEach(e => e.disabled = b || !port);
+  document.querySelectorAll("button[data-cmd], #btnCycle, #btnNow, #btnReset, input[type=range]").forEach(e => e.disabled = b || !port);
 }
 setBusy(false);
 
@@ -331,13 +332,9 @@ async function runStep(i, c) {
 async function prepare() {
   // the lift-bottom switch is not required any more (the car is too light to press it; the down move is timed).
   // Only when the carriage is away from home: lower the lift on the timer first, so the carriage never meets a half-way lift.
+  // a finished game leaves the machine at the far end: it has to be reset (switch OFF or the reset button) first
   const s = await status();
-  if (!s.CatHome) {
-    log("เตรียม: แคร่ไม่อยู่บ้าน → เอาลิฟต์ลงตามเวลาก่อน แล้วแคร่กลับบ้าน");
-    await cmd("D", RUN_DONE, downMs());
-    const l = await cmd("H", RUN_DONE, CAT_CAP);
-    if (!reached(l)) return "แคร่กลับบ้านไม่ได้ — ดูว่าแคร่ติดอะไรหรือสายสวิตช์บ้าน (A0)";
-  }
+  if (!s.CatHome) return "เครื่องยังค้างอยู่ตำแหน่งสุดท้าย — ปิดสวิตช์ หรือกด \"รีเซ็ตทั้งระบบ\" ก่อน";
   return null;
 }
 
@@ -345,7 +342,7 @@ async function runCycle() {
   if (busy) return;
   aborted = false; setBusy(true);
   const msg = $("cycleMsg"); msg.className = "msg"; msg.textContent = "กำลังเตรียมตำแหน่งเริ่มต้น…";
-  const n = Math.max(1, Math.min(50, +$("loops").value || 1));
+  const n = 1;                                     // one game, then it waits at the far end for a reset
   const tStart = Date.now();
   try {
     const err = await prepare();
@@ -372,11 +369,10 @@ async function runCycle() {
         if (c === "F") { log("ค้างโชว์ลูกเต๋า " + (+$("showHoldMs").value / 1000) + " s"); await sleep(+$("showHoldMs").value || 0); }   // show the die before pulling the slider back
       }
     }
-    if (!aborted) { msg.className = "msg ok"; msg.textContent = `สำเร็จ ${n} รอบ · ใช้เวลารวม ${((Date.now() - tStart) / 1000).toFixed(1)} s`; }
+    if (!aborted) { msg.className = "msg ok"; msg.textContent = `จบเกม · ใช้เวลา ${((Date.now() - tStart) / 1000).toFixed(1)} s · หยุดค้างไว้ ปิดสวิตช์หรือกด "รีเซ็ตทั้งระบบ" เพื่อกลับ`; }
   } finally {
     await status(); setBusy(false);
     if (resetPending) { resetPending = false; setTimeout(resetAll, 0); return; }
-    if (coinMode && !aborted) msg.textContent += " · 🪙 รอหยอดเหรียญรอบถัดไป…";
   }
 }
 
@@ -390,6 +386,7 @@ function setCoinMode(on) {
 }
 $("btnCycle").onclick = () => { if (!busy) setCoinMode(!coinMode); };
 $("btnNow").onclick = () => { if (!busy) runCycle(); };
+$("btnReset").onclick = () => { if (!busy) resetAll(); };
 
 // ---------- main ON/OFF switch (A3): ON = ready and waiting for a coin, OFF = stop and reset everything ----------
 let resetPending = false;
