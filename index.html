@@ -118,7 +118,7 @@
     <div class="slider"><label>เวลาพลิก (ms) <b id="vT">1000</b></label><input type="range" id="sT" min="500" max="8000" step="250" value="1000" data-key="T"></div>
     <div class="slider"><label>ฝั่งปลาย: หมุนสุดที่ (µs) <b id="vO">2600</b></label><input type="range" id="sO" min="2000" max="2700" step="25" value="2600" data-key="O"></div>
     <div class="slider"><label>ฝั่งเริ่มต้น (µs) <b id="vI">450</b></label><input type="range" id="sI" min="400" max="1000" step="25" value="450" data-key="I"></div>
-    <p class="note">ที่ปลายทั้งสองฝั่ง เซอร์โวดันแขนแนบตัวหยุดค้างไว้ จนกด "ปล่อยแกนเซอร์โว" หรือ "หยุดทั้งหมด"</p>
+    <p class="note">ที่ปลายทั้งสองฝั่ง เซอร์โวถอยจากตัวหยุด 60 µs แล้วค้างไว้ (ไม่ดันชนค้าง — ดันค้างทำเซอร์โวไหม้มาแล้ว 2 ตัว) · ตั้งสองค่านี้ให้แขนแค่แตะตัวหยุด</p>
   </section>
 
   <section class="card">
@@ -369,7 +369,7 @@ async function runCycle() {
         if (c === "F") { log("ค้างโชว์ลูกเต๋า " + (+$("showHoldMs").value / 1000) + " s"); await sleep(+$("showHoldMs").value || 0); }   // show the die before pulling the slider back
       }
     }
-    if (!aborted) { msg.className = "msg ok"; msg.textContent = `จบเกม · ใช้เวลา ${((Date.now() - tStart) / 1000).toFixed(1)} s · หยุดค้างไว้ ปิดสวิตช์หรือกด "รีเซ็ตทั้งระบบ" เพื่อกลับ`; }
+    if (!aborted) { await send("x"); msg.className = "msg ok"; msg.textContent = `จบเกม · ใช้เวลา ${((Date.now() - tStart) / 1000).toFixed(1)} s · หยุดค้างไว้ ปิดสวิตช์หรือกด "รีเซ็ตทั้งระบบ" เพื่อกลับ`; }
   } finally {
     await status(); setBusy(false);
     if (resetPending) { resetPending = false; setTimeout(resetAll, 0); return; }
