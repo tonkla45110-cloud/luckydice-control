@@ -274,8 +274,14 @@ document.querySelectorAll("input[type=range][data-key]").forEach(r => {
 });
 
 // ---------- polling ----------
-function startPoll() { stopPoll(); pollTimer = setInterval(() => { if (port && !busy) send("?").catch(() => {}); }, 600); }
-function stopPoll() { if (pollTimer) clearInterval(pollTimer); pollTimer = null; }
+// ~ every second, even mid-run: the board goes back to standalone (battery, coin starts a game) after 8 s of silence
+let hbTimer = null;
+function startPoll() {
+  stopPoll();
+  pollTimer = setInterval(() => { if (port && !busy) send("?").catch(() => {}); }, 600);
+  hbTimer = setInterval(() => { if (port) send("~").catch(() => {}); }, 1000);
+}
+function stopPoll() { if (pollTimer) clearInterval(pollTimer); if (hbTimer) clearInterval(hbTimer); pollTimer = hbTimer = null; }
 
 // ---------- single buttons ----------
 const RUN_DONE = /^ran .* s|already at the switch/;
