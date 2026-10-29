@@ -34,6 +34,9 @@
   button.stop { background: var(--bad); border-color: var(--bad); color: #fff; font-weight: 700; padding: 10px 22px; font-size: 16px; }
   .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
   .row.three { grid-template-columns: 1fr 1fr 1fr; }
+  .row.four { grid-template-columns: repeat(4, 1fr); }
+  .step { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; }
+  .step .adj { padding: 4px 10px; min-width: 0; }
   .lamps { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 8px; }
   .lamp { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; font-size: 13px; }
   .lamp i { width: 14px; height: 14px; border-radius: 50%; background: var(--lampoff); flex: none; }
@@ -114,12 +117,14 @@
   <section class="card">
     <h2>แขนพลิก <small>เซอร์โว 360° ที่ D9</small></h2>
     <div class="row"><button data-cmd="W" data-done="Show out">พลิกไปฝั่งปลาย</button><button data-cmd="w" data-done="Show home">กลับฝั่งเริ่มต้น</button></div>
-    <div class="row"><button data-cmd="<" data-done="Arm nudge back">◀ ขยับกลับนิดหน่อย</button><button data-cmd=">" data-done="Arm nudge out">ขยับไปนิดหน่อย ▶</button></div>
+    <div class="row four"><button class="nudge" data-deg="-5">◀ 5°</button><button class="nudge" data-deg="-1">◀ 1°</button><button class="nudge" data-deg="1">1° ▶</button><button class="nudge" data-deg="5">5° ▶</button></div>
+    <div class="slider"><label>มุมหมุนไปฝั่งปลาย (องศา) <b id="vR">120</b></label><div class="step"><button class="adj" data-for="sR" data-d="-1">−1°</button><input type="range" id="sR" min="1" max="360" step="1" value="120" data-key="R"><button class="adj" data-for="sR" data-d="1">+1°</button></div></div>
+    <div class="slider"><label>มุมหมุนกลับฝั่งเริ่มต้น (องศา) <b id="vL">120</b></label><div class="step"><button class="adj" data-for="sL" data-d="-1">−1°</button><input type="range" id="sL" min="1" max="360" step="1" value="120" data-key="L"><button class="adj" data-for="sL" data-d="1">+1°</button></div></div>
     <div class="slider"><label>ความเร็วหมุน (µs จาก 1500) <b id="vV">150</b></label><input type="range" id="sV" min="30" max="500" step="10" value="150" data-key="V"></div>
-    <div class="slider"><label>เวลาหมุนไปฝั่งปลาย (ms) <b id="vR">700</b></label><input type="range" id="sR" min="50" max="3000" step="25" value="700" data-key="R"></div>
-    <div class="slider"><label>เวลาหมุนกลับฝั่งเริ่มต้น (ms) <b id="vL">700</b></label><input type="range" id="sL" min="50" max="3000" step="25" value="700" data-key="L"></div>
+    <div class="slider"><label>เวลาหมุนครบ 1 รอบ (ms · ใช้แปลงองศา) <b id="vM">1500</b></label><div class="step"><button class="adj" data-for="sM" data-d="-10">−10</button><input type="range" id="sM" min="200" max="6000" step="10" value="1500" data-key="M"><button class="adj" data-for="sM" data-d="10">+10</button></div></div>
     <div class="slider"><label>ทิศทาง (1 / -1 ถ้าหมุนกลับด้าน) <b id="vY">1</b></label><input type="range" id="sY" min="-1" max="1" step="2" value="1" data-key="Y"></div>
-    <p class="note">เซอร์โว 360° ไม่รู้ตำแหน่งตัวเอง: หมุนตามเวลาที่ตั้ง แล้วตัดสัญญาณ (ไม่ดันค้าง) · ปรับเวลาให้แขนไปแค่ถึงตัวหยุด · ถ้าแขนเลื่อนจากตำแหน่ง ใช้ปุ่มขยับนิดหน่อยจัดให้อยู่ฝั่งเริ่มต้นก่อนเริ่มเกม · ติดลิมิตสวิตช์ที่ A4 (ฝั่งเริ่มต้น) / D7 (ฝั่งปลาย) ได้ เครื่องจะหยุดเมื่อแตะสวิตช์</p>
+    <div class="row"><button id="btnTurn">หมุนทดสอบ 1 รอบ (ถอดแขนก่อน)</button><button id="btnSaveArm">💾 บันทึกค่าลงบอร์ด</button></div>
+    <p class="note">ตั้งค่าครั้งแรก: ① ถอดแขน กด "หมุนทดสอบ 1 รอบ" ปรับ "เวลาหมุนครบ 1 รอบ" จนหมุนครบ 360° พอดี ② ใส่แขนที่ฝั่งเริ่มต้น ③ กดพลิกไป/กลับ ปรับมุมทีละ 1° จนแขนแค่แตะตัวหยุด ④ กด 💾 บันทึก — บอร์ดจำค่าไว้แม้ถอดไฟ (ใช้ตอนเล่นด้วยแบตด้วย) · ปุ่ม ◀ ▶ ใช้จัดแขนเข้าที่ ไม่เปลี่ยนค่า · เซอร์โว 360° หยุดคลาดได้ราว ±2–5° · ลิมิตสวิตช์ A4 (เริ่มต้น) / D7 (ปลาย) ช่วยให้หยุดตรง</p>
   </section>
 
   <section class="card">
@@ -179,7 +184,7 @@ $("btnClear").onclick = () => $("log").innerHTML = "";
 
 function setBusy(b) {
   busy = b;
-  document.querySelectorAll("button[data-cmd], #btnCycle, #btnNow, #btnReset, input[type=range]").forEach(e => e.disabled = b || !port);
+  document.querySelectorAll("button[data-cmd], #btnCycle, #btnNow, #btnReset, .nudge, .adj, #btnTurn, #btnSaveArm, input[type=range]").forEach(e => e.disabled = b || !port);
 }
 setBusy(false);
 
@@ -198,7 +203,8 @@ $("btnConn").onclick = async () => {
     await sleep(2500);
     $("connState").innerHTML = "สถานะ: <b>เชื่อมต่อแล้ว</b>";
     setBusy(false);
-    for (const k of ["U", "D", "C", "P", "V", "R", "L", "Y", "A", "B"]) await sendSetting(k, $("s" + k).value);
+    for (const k of ["U", "D", "C", "P", "A", "B"]) await sendSetting(k, $("s" + k).value);
+    await sendSetting("Q", 0);                       // arm values stay as saved on the board: read them back (SET line)
     startPoll();
     if ((await status()).Button) { log("สวิตช์เปิดเครื่องอยู่ในตำแหน่งเปิด → รอหยอดเหรียญ"); setCoinMode(true); }
   } catch (e) { log("เชื่อมต่อไม่ได้: " + e.message, "err"); port = null; }
@@ -237,6 +243,7 @@ function onLine(line) {
   else log(line);
   if (line === "BTN 1") onSwitch(true); else if (line === "BTN 0") onSwitch(false);
   if (/^COIN [0-9]+/.test(line) && coinMode && !busy && port) { log("🪙 เหรียญเข้า → เริ่มรันทั้งระบบ"); setTimeout(runCycle, 0); }
+  syncArm(line);
   const m = line.match(/VBAT = ([\d.]+)/); if (m) $("vbat").textContent = "แบตเตอรี่: " + m[1] + " V";
   for (const w of [...waiters]) { w.lines.push(line); if (w.done.test(line)) { waiters = waiters.filter(x => x !== w); w.resolve(w.lines); } }
 }
@@ -275,6 +282,29 @@ document.querySelectorAll("input[type=range][data-key]").forEach(r => {
   r.onchange = async () => { show(); if (port && !busy) await sendSetting(r.dataset.key, r.value); };
 });
 
+
+// ---------- 360° flip arm: degree steps, one-turn test, save to the board's EEPROM ----------
+function setSlider(id, v) { const r = $(id); r.value = v; $("v" + r.dataset.key).textContent = r.value; }
+document.querySelectorAll("button.adj").forEach(b => b.onclick = async () => {
+  if (busy) return;
+  const r = $(b.dataset.for);
+  setSlider(b.dataset.for, Math.min(+r.max, Math.max(+r.min, +r.value + +b.dataset.d)));
+  if (port) await sendSetting(r.dataset.key, r.value);
+});
+async function armOnce(c, done, cap) {
+  if (busy || !port) return;
+  aborted = false; setBusy(true);
+  try { await cmd(c, done, cap); } finally { setBusy(false); }
+}
+document.querySelectorAll("button.nudge").forEach(b => b.onclick = () => armOnce("=N" + b.dataset.deg + "\n", /Arm nudged/, 5000));
+$("btnTurn").onclick = () => armOnce("=G0\n", /Arm one turn/, 25000);
+$("btnSaveArm").onclick = async () => { await armOnce("!", /SAVED/, 3000); log("💾 บันทึกค่าแขนลงบอร์ดแล้ว — ใช้ตอนเปิดเครื่องด้วยแบตด้วย", "ok"); };
+// the board's SET line carries the arm values (loaded from EEPROM at power-up): show them on the sliders
+function syncArm(line) {
+  const m = line.match(/arm360 v=(-?\d+) msrev=(\d+) out=(\d+) back=(\d+) dir=(-?\d+)/);
+  if (!m) return;
+  setSlider("sV", m[1]); setSlider("sM", m[2]); setSlider("sR", m[3]); setSlider("sL", m[4]); setSlider("sY", m[5]);
+}
 // ---------- polling ----------
 // ~ every second, even mid-run: the board goes back to standalone (battery, coin starts a game) after 8 s of silence
 let hbTimer = null;
