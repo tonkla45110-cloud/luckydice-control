@@ -112,13 +112,14 @@
   </section>
 
   <section class="card">
-    <h2>แขนพลิก <small>MG90S ที่ D9</small></h2>
+    <h2>แขนพลิก <small>เซอร์โว 360° ที่ D9</small></h2>
     <div class="row"><button data-cmd="W" data-done="Show out">พลิกไปฝั่งปลาย</button><button data-cmd="w" data-done="Show home">กลับฝั่งเริ่มต้น</button></div>
-    <div class="row"><button data-cmd="x" data-done="STOP">ปล่อยแกนเซอร์โว</button><span></span></div>
-    <div class="slider"><label>เวลาพลิก (ms) <b id="vT">1000</b></label><input type="range" id="sT" min="500" max="8000" step="250" value="1000" data-key="T"></div>
-    <div class="slider"><label>ฝั่งปลาย: หมุนสุดที่ (µs) <b id="vO">2400</b></label><input type="range" id="sO" min="2000" max="2700" step="25" value="2400" data-key="O"></div>
-    <div class="slider"><label>ฝั่งเริ่มต้น (µs) <b id="vI">600</b></label><input type="range" id="sI" min="400" max="1000" step="25" value="600" data-key="I"></div>
-    <p class="note">ที่ปลายทั้งสองฝั่ง เซอร์โวถอยจากตัวหยุด 60 µs แล้วค้างไว้ (ไม่ดันชนค้าง — ดันค้างทำเซอร์โวไหม้มาแล้ว 2 ตัว) · ตั้งสองค่านี้ให้แขนแค่แตะตัวหยุด</p>
+    <div class="row"><button data-cmd="<" data-done="Arm nudge back">◀ ขยับกลับนิดหน่อย</button><button data-cmd=">" data-done="Arm nudge out">ขยับไปนิดหน่อย ▶</button></div>
+    <div class="slider"><label>ความเร็วหมุน (µs จาก 1500) <b id="vV">150</b></label><input type="range" id="sV" min="30" max="500" step="10" value="150" data-key="V"></div>
+    <div class="slider"><label>เวลาหมุนไปฝั่งปลาย (ms) <b id="vR">700</b></label><input type="range" id="sR" min="50" max="3000" step="25" value="700" data-key="R"></div>
+    <div class="slider"><label>เวลาหมุนกลับฝั่งเริ่มต้น (ms) <b id="vL">700</b></label><input type="range" id="sL" min="50" max="3000" step="25" value="700" data-key="L"></div>
+    <div class="slider"><label>ทิศทาง (1 / -1 ถ้าหมุนกลับด้าน) <b id="vY">1</b></label><input type="range" id="sY" min="-1" max="1" step="2" value="1" data-key="Y"></div>
+    <p class="note">เซอร์โว 360° ไม่รู้ตำแหน่งตัวเอง: หมุนตามเวลาที่ตั้ง แล้วตัดสัญญาณ (ไม่ดันค้าง) · ปรับเวลาให้แขนไปแค่ถึงตัวหยุด · ถ้าแขนเลื่อนจากตำแหน่ง ใช้ปุ่มขยับนิดหน่อยจัดให้อยู่ฝั่งเริ่มต้นก่อนเริ่มเกม · ติดลิมิตสวิตช์ที่ A4 (ฝั่งเริ่มต้น) / D7 (ฝั่งปลาย) ได้ เครื่องจะหยุดเมื่อแตะสวิตช์</p>
   </section>
 
   <section class="card">
@@ -197,7 +198,7 @@ $("btnConn").onclick = async () => {
     await sleep(2500);
     $("connState").innerHTML = "สถานะ: <b>เชื่อมต่อแล้ว</b>";
     setBusy(false);
-    for (const k of ["U", "D", "C", "T", "P", "O", "I", "A", "B"]) await sendSetting(k, $("s" + k).value);
+    for (const k of ["U", "D", "C", "P", "V", "R", "L", "Y", "A", "B"]) await sendSetting(k, $("s" + k).value);
     startPoll();
     if ((await status()).Button) { log("สวิตช์เปิดเครื่องอยู่ในตำแหน่งเปิด → รอหยอดเหรียญ"); setCoinMode(true); }
   } catch (e) { log("เชื่อมต่อไม่ได้: " + e.message, "err"); port = null; }
